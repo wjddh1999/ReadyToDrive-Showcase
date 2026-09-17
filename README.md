@@ -82,66 +82,9 @@ Unity Standard Assets의 차량 물리 제어와 `WheelEffects`를 기반 구성
 
 ## Code Samples
 
-### 1. 클러치 입력
-
-`CarState.GearShift()`에서 현재 기어를 보관하고 중립으로 전환합니다.
-
-```csharp
-if (Input.GetKeyDown(KeyCode.LeftShift) && Gear != -1)
-{
-    ShiftGear = Gear;
-    CacGear = Gear;
-    CalcLowAcc = m_LowSpeed;
-    Gear = 0;
-    isClutch = true;
-}
-```
-
-### 2. 기어 선택
-
-`CarCtrl.Start()`에서 UI 버튼은 현재 기어를 직접 변경하지 않고 다음 기어만 기록합니다.
-
-```csharp
-if (GearBtn[0] != null)
-{
-    GearBtn[0].onClick.AddListener(() =>
-    {
-        if (CarState.inst.isClutch && CarState.inst.Gear != -1)
-            CarState.inst.ShiftGear = 0;
-    });
-}
-```
-
-### 3. 다단 상향 변속
-
-기어 차이와 현재 RPM을 기준으로 변속 가능 여부를 판정합니다.
-
-```csharp
-if (2000 + (500 * (ShiftGear - CacGear)) <= RPM)
-{
-    RPMChange = true;
-    Gear = ShiftGear;
-    GearSound.PlayOneShot(GearSound.clip, 0.7f);
-}
-else
-{
-    Gear = -1;
-    m_LowSpeed = 0;
-    ShiftGear = 0;
-    SoundCtrl(audioSource, "Vehicle_Car_Stop_Engine_Exterior", false);
-}
-```
-
-### 4. 변속 후 RPM 변화
-
-상향 변속 후 RPM을 보간해 계기판 변화가 연속적으로 보이도록 처리합니다.
-
-```csharp
-if (RPM <= 1000.0f)
-    RPMChange = false;
-
-RPM = Mathf.Lerp(RPM, 0.0f, Time.deltaTime * 2.0f);
-```
+| 영역 | 코드 | 확인할 수 있는 내용 |
+|---|---|---|
+| Manual Transmission | [`CodeSamples/Transmission`](CodeSamples/Transmission/README.md) | 클러치 입력, 기어 선택과 적용 시점 분리, RPM 기반 변속 판정, 변속 후 RPM 반응 |
 
 ## Technical Decisions
 
