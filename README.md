@@ -1,59 +1,90 @@
+<div align="center">
+
 # ReadyToDrive
+
 ### Manual Transmission Driving Simulator
 
-클러치·기어·RPM 상태를 연결해 수동 운전의 조작 규칙을 구현한 Unity 개인 프로젝트입니다.  
-**Unity · C# · WheelCollider · Windows**
+클러치·기어 선택·RPM 조건을 연결해 수동 운전의 판단 과정을 구현한 Unity 개인 프로젝트입니다.
 
-[프로젝트 상세 및 시연](https://app.notion.com/p/3cba971ce6a28169aa52d709d0c70a4c)
+![Unity 2022.3 LTS](https://img.shields.io/badge/Unity-2022.3_LTS-000000?logo=unity&logoColor=white)
+![C#](https://img.shields.io/badge/C%23-Gameplay_Code-512BD4?logo=csharp&logoColor=white)
+![Platform Windows](https://img.shields.io/badge/Platform-Windows-0078D6?logo=windows&logoColor=white)
+![Public Showcase](https://img.shields.io/badge/Status-Public_Showcase-2EA44F)
+
+[**▶ Gameplay Video**](https://www.youtube.com/watch?v=qmOj5I5J68Y) · [**🧩 Review Code Samples**](#code-samples)
+
+[Overview](#overview) · [Contribution Scope](#contribution-scope) · [Core Systems](#core-systems) · [Code Samples](#code-samples) · [Tech Stack](#tech-stack)
+
+</div>
+
+---
 
 ## Overview
 
 | 항목 | 내용 |
 |---|---|
-| 개발 기간 | 2024.11 – 2025.03 |
-| 개발 형태 | 개인 프로젝트 |
-| 핵심 경험 | 수동 변속 규칙 · 차량 상태 · 입력과 UI 연결 |
-| 기반 기술 | Unity 2022.3 · C# · Rigidbody · WheelCollider |
-| 공개 범위 | 직접 구현한 변속 로직의 발췌와 설명 |
+| Genre | Manual Transmission Driving Simulator |
+| Development | 2024.11 – 2025.03 |
+| Team | 1명 |
+| Role | Unity Client / Gameplay Programmer |
+| Engine | Unity 2022.3 LTS |
+| Repository | 채용 검토용 Showcase |
+| Project Detail | [Notion Portfolio](https://app.notion.com/p/3cba971ce6a28169aa52d709d0c70a4c) |
 
-## Contribution & Attribution
+### Project Focus
 
-Unity Standard Assets 차량 제어 코드를 기반으로 사용하고, 수동 변속·클러치·RPM 규칙과 관련 입력·UI를 구현했습니다.
+| Manual Transmission | Vehicle State | Player Feedback |
+|---|---|---|
+| 클러치 입력, 기어 선택, 변속 판정 | 현재·이전·선택 기어와 RPM 상태 | 기어 UI, 계기판, 엔진 사운드 연결 |
 
-- **기반 코드 활용:** 차량 물리 제어와 WheelEffects 등 Standard Assets 구성 요소
-- **직접 구현 영역:** 클러치 입력에 따른 기어 전환, RPM 조건별 변속 판정, 변속 후 RPM 변화, 기어 선택 UI와 차량 상태 연결
-- **이 저장소에서 제외:** Standard Assets 원본, 외부 에셋, 씬, 사운드, 전체 Unity 프로젝트
+## Contribution Scope
 
-차량 물리 엔진 전체를 자체 구현한 프로젝트가 아닙니다. 기어별 속도·토크 설정과 RPM 임계값을 사용한 게임플레이 모델이며, 실제 기어비·엔진 토크 곡선에 기반한 정밀 차량 시뮬레이션과 구분합니다.
+Unity Standard Assets의 차량 물리 제어와 `WheelEffects`를 기반 구성으로 사용했습니다. 직접 구현한 영역은 수동 변속 규칙과 입력·상태·UI 연결입니다.
 
-## Implementation
+- 클러치 입력에 따른 현재 기어 보관과 중립 전환
+- UI에서 선택한 기어의 적용 시점 제어
+- 기어 차이와 RPM을 이용한 변속 성공·실패 판정
+- 상향·하향 변속에 따른 RPM 변화
+- 기어 선택 UI와 차량 상태 표시 연결
 
-### Clutch & Gear State
+차량 물리 제어, `WheelEffects`, 외부 에셋은 직접 구현 범위에 포함하지 않습니다.
 
-클러치를 누르면 현재 기어를 기억하고 중립으로 전환합니다. 기어 UI는 선택할 기어만 변경하며, 클러치를 놓을 때 변속 조건을 판정합니다.
+## Core Systems
 
-| 상태 값 | 의미 |
+### 1. Clutch & Gear Selection
+
+클러치를 누르면 현재 기어를 별도로 보관한 뒤 차량을 중립 상태로 전환합니다. UI 입력은 다음 기어만 선택하며, 실제 기어 변경은 클러치를 놓는 시점에 판정합니다.
+
+| 상태 | 역할 |
 |---|---|
-| Gear | 현재 기어: -1 시동 꺼짐, 0 중립, 1–5 전진, 6 후진 |
-| CacGear | 클러치를 누르기 전 기어 |
-| ShiftGear | UI에서 선택한 다음 기어 |
-| RPMChange | 변속에 따른 RPM 보간 진행 여부 |
+| `Gear` | 현재 기어: -1 시동 정지, 0 중립, 1–5 전진, 6 후진 |
+| `CacGear` | 클러치 입력 직전 기어 |
+| `ShiftGear` | UI에서 선택한 다음 기어 |
+| `RPMChange` | 변속 후 RPM 보간 진행 여부 |
 
-### Shift Rules
+### 2. Shift Validation
 
-- 같은 기어를 선택하면 원래 기어를 복원합니다.
-- N/1단에서 1/2단으로 변경하는 경우 별도 허용 분기를 사용합니다.
-- 일반적인 한 단 상향 변속은 RPM 2000 이상에서 허용하고, 미달하면 이전 기어로 복원합니다.
-- 두 단 이상 상향 변속은 기어 차이에 비례한 추가 RPM을 요구하며, 미달하면 시동 꺼짐 상태로 전환합니다.
-- 상향 변속 후 RPM은 감소 방향, 하향 변속 후에는 증가 방향으로 보간합니다.
+같은 기어 선택, 저단 전환, 한 단 상향, 두 단 이상 상향을 서로 다른 규칙으로 처리합니다.
+
+- 같은 기어를 선택하면 이전 기어를 복원합니다.
+- N/1단에서 1/2단으로 전환할 때는 별도 허용 분기를 사용합니다.
+- 한 단 상향 변속은 RPM 2000 이상에서 허용합니다.
+- 두 단 이상 상향 변속은 기어 차이에 비례한 추가 RPM을 요구합니다.
+- 조건을 충족하지 못하면 이전 기어 복원 또는 시동 정지 상태로 전환합니다.
+
+### 3. RPM Transition
+
+상향 변속에서는 RPM을 감소 방향으로, 하향 변속에서는 증가 방향으로 보간합니다. 기어 변경 직후 값을 즉시 바꾸지 않아 계기판과 엔진 반응이 연속적으로 보이도록 했습니다.
+
+### 4. Vehicle Feedback
+
+기어 선택 UI, 현재 기어, RPM 표시, 엔진 사운드를 차량 상태와 연결했습니다. 입력 결과와 변속 성공 여부를 화면과 소리로 확인할 수 있습니다.
 
 ## Code Samples
 
-다음은 원본 `Assets/Scripts/CarState.cs`와 `CarCtrl.cs`에서 발췌한 코드입니다. 주변 클래스·필드·분기는 생략했으며, 독립 실행용 코드가 아닙니다. 원본 로직을 보존하고 발췌 위치와 의존성을 함께 설명합니다.
+### 1. 클러치 입력
 
-### 1. 클러치 입력과 기어 선택
-
-`CarState.GearShift()`의 클러치 입력 분기입니다.
+`CarState.GearShift()`에서 현재 기어를 보관하고 중립으로 전환합니다.
 
 ```csharp
 if (Input.GetKeyDown(KeyCode.LeftShift) && Gear != -1)
@@ -66,24 +97,24 @@ if (Input.GetKeyDown(KeyCode.LeftShift) && Gear != -1)
 }
 ```
 
-`CarCtrl.Start()`의 중립 버튼 등록 부분입니다. 버튼은 현재 기어를 즉시 바꾸지 않고 선택값만 기록합니다.
+### 2. 기어 선택
+
+`CarCtrl.Start()`에서 UI 버튼은 현재 기어를 직접 변경하지 않고 다음 기어만 기록합니다.
 
 ```csharp
 if (GearBtn[0] != null)
 {
     GearBtn[0].onClick.AddListener(() =>
     {
-        if (CarState.inst.isClutch == true && CarState.inst.Gear != -1)
+        if (CarState.inst.isClutch && CarState.inst.Gear != -1)
             CarState.inst.ShiftGear = 0;
     });
 }
 ```
 
-**확인할 점:** 입력 → 선택값 기록 → 클러치 해제 시 판정으로 조작의 순서를 표현했습니다.
+### 3. 다단 상향 변속
 
-### 2. 상향 변속 조건
-
-`CarState.GearShift()`의 두 단 이상 상향 변속 분기 내부입니다. 이 코드에 도달하기 전에 같은 기어·저단 예외·한 단 상향 변속 분기를 처리합니다.
+기어 차이와 현재 RPM을 기준으로 변속 가능 여부를 판정합니다.
 
 ```csharp
 if (2000 + (500 * (ShiftGear - CacGear)) <= RPM)
@@ -92,7 +123,7 @@ if (2000 + (500 * (ShiftGear - CacGear)) <= RPM)
     Gear = ShiftGear;
     GearSound.PlayOneShot(GearSound.clip, 0.7f);
 }
-else if (RPM < 2000 + (500 * (ShiftGear - CacGear)))
+else
 {
     Gear = -1;
     m_LowSpeed = 0;
@@ -101,11 +132,9 @@ else if (RPM < 2000 + (500 * (ShiftGear - CacGear)))
 }
 ```
 
-**확인할 점:** 기어 차이와 RPM을 조건으로 성공·실패 상태를 구분합니다. 오디오 호출은 프로젝트 내부 의존성이며 사운드 파일은 포함하지 않습니다.
+### 4. 변속 후 RPM 변화
 
-### 3. 상향 변속 후 RPM 변화
-
-`CarState.RpmDiffuse()`에서 `RPMChange == true`이고 `CacGear < ShiftGear`인 분기입니다.
+상향 변속 후 RPM을 보간해 계기판 변화가 연속적으로 보이도록 처리합니다.
 
 ```csharp
 if (RPM <= 1000.0f)
@@ -114,22 +143,37 @@ if (RPM <= 1000.0f)
 RPM = Mathf.Lerp(RPM, 0.0f, Time.deltaTime * 2.0f);
 ```
 
-**확인할 점:** 변속 후 RPM을 즉시 대입하지 않고 보간합니다. 원본은 0을 보간 목표로 사용하고 RPM 1000 이하에서 종료 플래그를 변경합니다. 정확히 1000으로 고정하는 로직은 아닙니다.
+## Technical Decisions
 
-## Retrospective
+- **Deferred gear application:** UI 입력과 실제 기어 적용 시점을 분리해 클러치 조작 순서를 표현했습니다.
+- **Explicit gear state:** 현재 기어, 이전 기어, 선택 기어를 구분해 변속 판정에 필요한 상태를 보존했습니다.
+- **RPM-gated shifting:** 상향 변속 성공 조건을 기어 차이와 RPM으로 계산해 조작 결과에 규칙을 부여했습니다.
+- **Interpolated feedback:** 변속 직후 RPM을 즉시 대입하지 않고 보간해 시각·청각 피드백의 연속성을 유지했습니다.
+- **Dependency boundary:** Standard Assets 기반 차량 제어와 직접 구현한 변속 규칙의 범위를 구분했습니다.
 
-현재 코드의 특징과 이후 개선 방향을 구분합니다. 아래 개선 사항은 구현 완료를 주장하는 항목이 아닙니다.
+## Tech Stack
 
-- **상태 표현:** 원본은 정수 기어 값에 시동 상태까지 포함합니다. 이후에는 엔진 상태와 기어 enum을 분리할 수 있습니다.
-- **책임 분리:** CarState에 입력·변속·계기판·연료·오디오가 함께 있습니다. 변속 판정과 표시 계층을 분리하면 규칙 테스트가 쉬워집니다.
-- **설정 관리:** 기어별 속도·토크와 RPM 임계값은 코드에 직접 작성돼 있습니다. 설정 데이터로 옮기면 튜닝과 검증을 분리할 수 있습니다.
-- **검증:** RPM 2000 경계, 다단 변속 실패, 클러치 해제 시점, 후진 전환을 테스트 대상으로 삼을 수 있습니다.
-- **보간 종료:** RPM 목표값과 종료 조건을 일치시키고, 변속 취소·엔진 정지 시 보간 상태 초기화를 명시하는 방향으로 개선할 수 있습니다.
-
-이번 쇼케이스 정리는 문서와 코드 발췌 작업입니다. Unity 실행·물리 테스트나 원본 코드 리팩터링은 수행하지 않았습니다.
+| 분류 | 기술 |
+|---|---|
+| Engine | Unity 2022.3 LTS |
+| Language | C# |
+| Vehicle | Rigidbody · WheelCollider · Unity Standard Assets |
+| Gameplay | Clutch · Gear State · RPM-based Shift Rules |
+| UI / Feedback | Unity UI · RPM / Gear Display · Audio |
+| Tools | Git · GitHub · Notion |
 
 ## Repository Scope
 
-원본 Unity 프로젝트는 Private으로 유지합니다. 이 저장소에는 검토용 문서와 직접 구현 영역의 발췌만 포함하며, 전체 빌드에 필요한 의존성과 에셋을 제공하지 않습니다.
+이 저장소는 채용 검토용 Showcase입니다. 원본 Unity 프로젝트는 라이선스가 있는 외부 에셋과 Standard Assets 구성 요소를 포함하고 있어 Private으로 유지합니다.
 
-코드와 문서는 포트폴리오 검토 목적으로 공개합니다. 별도 라이선스가 없는 자료에 대한 복제·재배포 권한을 부여하지 않습니다. 외부 구성 요소의 권리는 해당 권리자에게 있습니다.
+공개 범위에는 다음 항목만 포함합니다.
+
+- 직접 구현한 수동 변속 규칙의 핵심 코드
+- 입력·차량 상태·UI 연결 구조 설명
+- 프로젝트 상세 문서와 플레이 영상 연결
+
+코드 샘플은 핵심 로직을 검토하기 위한 선별본이며, 원본 프로젝트의 전체 의존성과 에셋을 포함하지 않아 단독 실행되지 않습니다.
+
+## Usage Notice
+
+이 저장소의 코드와 문서는 포트폴리오 검토 목적으로 공개합니다. 별도 라이선스가 명시되지 않은 자료의 복제·재배포 권한은 부여하지 않습니다. 외부 구성 요소의 권리는 해당 권리자에게 있습니다.
