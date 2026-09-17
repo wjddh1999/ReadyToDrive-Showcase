@@ -1,35 +1,34 @@
 # Manual Transmission Flow
 
-이 폴더는 ReadyToDrive의 수동 변속 처리 중 클러치 입력, 기어 선택, 변속 판정, RPM 반응 흐름을 선별한 코드 샘플입니다.
+ReadyToDrive의 수동 변속을 클러치 입력부터 차량 구동 반영까지 연속해서 확인할 수 있는 코드 샘플입니다.
 
 ```mermaid
 flowchart LR
-    A[클러치 입력] --> B[현재 기어 보관]
-    B --> C[선택 기어 기록]
-    C --> D[변속 조건 판정]
-    D --> E[기어 적용]
-    E --> F[RPM 변화]
+    A[클러치 입력] --> B[기어 선택]
+    B --> C[변속 판정]
+    C --> D[기어 적용]
+    D --> E[RPM 반응]
+    E --> F[구동 토크]
 ```
 
 ## 파일 구성
 
-| 파일 | 역할 |
-|---|---|
-| `ClutchInput.cs` | 현재 기어를 보관하고 클러치 입력 중 중립 상태로 전환 |
-| `GearSelection.cs` | UI 입력으로 다음 기어를 기록하고 실제 적용 시점과 분리 |
-| `ShiftValidation.cs` | 기어 차이와 RPM을 기준으로 다단 상향 변속 성공·실패 판정 |
-| `RpmTransition.cs` | 변속 후 RPM을 보간해 계기판과 엔진 반응을 연속적으로 표현 |
+| 파일 | 역할 | 검토 포인트 |
+|---|---|---|
+| [`ManualTransmissionFlow.cs`](ManualTransmissionFlow.cs) | 클러치 입력, 전체 변속 분기, 변속 후 RPM 변화 | 상태 전환과 조기 반환을 이용한 변속 규칙 |
+| [`GearSelectionInput.cs`](GearSelectionInput.cs) | N·1~5·R UI 입력을 선택 기어에 연결 | 기어 선택과 실제 적용 시점 분리 |
+| [`VehiclePowertrainIntegration.cs`](VehiclePowertrainIntegration.cs) | 클러치·기어 상태를 가속 입력, 토크, RPM에 반영 | 변속 상태와 차량 제어의 연결 경계 |
 
-## 처리 순서
+## 전체 흐름
 
-1. 클러치 입력 시 현재 기어를 `CacGear`에 보관합니다.
-2. 차량의 현재 기어를 중립으로 바꾸고 `isClutch` 상태를 활성화합니다.
-3. UI는 `ShiftGear`에 다음 기어만 기록합니다.
-4. 클러치를 놓을 때 현재 RPM과 기어 차이를 기준으로 변속 가능 여부를 판정합니다.
-5. 성공하면 선택 기어를 적용하고, 실패하면 이전 기어 복원 또는 시동 정지 상태로 전환합니다.
-6. 변속 방향에 따라 RPM을 증가 또는 감소 방향으로 보간합니다.
+1. 클러치 입력 시 현재 기어를 `CacGear`에 보관하고 차량을 중립으로 전환합니다.
+2. UI 입력은 `ShiftGear`만 변경하며 현재 기어에는 즉시 반영하지 않습니다.
+3. 클러치를 놓으면 후진, 동일 기어, 저단 구간, 한 단 상향, 다단 상향, 하향 변속 순서로 조건을 판정합니다.
+4. 변속에 성공하면 선택 기어를 적용하고, 조건이 부족하면 이전 기어 복원 또는 시동 정지 상태로 전환합니다.
+5. 상향·하향 변속에 맞춰 RPM을 보간합니다.
+6. 차량 제어 계층은 클러치 상태에서 가속을 차단하고 현재 기어에 맞춰 휠 토크를 적용합니다.
 
-## 상태 구분
+## 주요 상태
 
 | 상태 | 의미 |
 |---|---|
@@ -39,8 +38,10 @@ flowchart LR
 | `isClutch` | 클러치 입력 상태 |
 | `RPMChange` | 변속 후 RPM 보간 진행 여부 |
 
-## 구현 범위
+## 샘플 기준
 
-Unity Standard Assets의 차량 물리 제어와 `WheelEffects`를 기반 구성으로 사용했습니다. 이 폴더의 샘플은 직접 구현한 수동 변속 규칙과 입력·상태·UI 연결을 보여줍니다.
+`ManualTransmissionFlow.cs`는 원본 `CarState.cs`의 상태값, `GearShift()`, `RpmDiffuse()`를 중심으로 선별했습니다.
 
-코드는 원본 `CarState.cs`와 `CarCtrl.cs`의 관련 구간을 선별한 검토용 발췌입니다. 주변 필드, UI 구성, 오디오 및 Standard Assets 의존성을 포함하지 않아 단독 실행되지 않습니다.
+`GearSelectionInput.cs`와 `VehiclePowertrainIntegration.cs`는 원본 `CarCtrl.cs`의 기어 버튼 등록, 클러치 가속 차단, 기어별 토크, RPM 입력 처리를 검토하기 쉬운 책임 단위로 옮긴 공개용 코드입니다. 핵심 조건과 처리 순서는 원본을 따르며, 중복 UI 등록과 이 샘플에 필요하지 않은 조향·브레이크·라이트·트랙션 로직은 제외했습니다.
+
+Unity Standard Assets의 차량 물리 제어와 `WheelEffects`는 기반 구성으로 사용했으며 직접 구현 범위에 포함하지 않습니다. 원본 프로젝트의 씬, 오디오, UI 참조와 외부 에셋을 포함하지 않아 이 폴더만으로는 실행되지 않습니다.
